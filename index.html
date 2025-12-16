@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Officer Verification</title>
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Poppins, sans-serif;
+    background: #0c1222;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100vh;
+}
+.container {
+    width: 80%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    max-width: 500px;
+    margin: 10px;
+    padding: 25px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 16px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    text-align: center;
+}
+.hidden { display: none; }
+.title { font-size: 32px; font-weight: 700; margin-bottom: 20px; }
+.subtitle { font-size: 24px; margin-bottom: 15px; }
+.input { width: 90%; padding: 12px; margin: 10px 0; border: none; border-radius: 10px; font-size: 15px; }
+.btn { width: 100%; padding: 12px; margin: 8px 0; font-size: 16px; border: none; border-radius: 12px; cursor: pointer; transition: 0.2s; }
+.btn.primary { background: #3b82f6; color: white; }
+.btn.primary:hover { background: #2563eb; }
+.btn.secondary { background: #8b5cf6; color: white; }
+.btn.secondary:hover { background: #6d28d9; }
+.btn.back { background: crimson; }
+.btn.back:hover { background: #1f2937; }
+.dropbox { width: 80%;  padding: 20px; background: rgba(255,255,255,0.1); border: 2px dashed #3b82f6; border-radius: 12px; margin-top: 10px; color: #cbd5e1; cursor: pointer; }
+.dropbox:hover { background: rgba(255,255,255,0.15); }
+.dropbox input { display: none; }
+.result-box { margin-top: 20px; padding: 15px; background: rgba(255,255,255,0.07); border-radius: 12px; min-height: 50px; }
+.result-box img { width: 100%; border-radius: 12px; margin-top: 10px; }
+.officer-list { margin-top: 20px; text-align: left; }
+.officer-card { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+.officer-card img { width: 60px; height: 60px; object-fit: cover; border-radius: 8px; }
+.officer-info { flex: 1; }
+.officer-actions button { margin-left: 5px; padding: 6px 10px; font-size: 14px; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<!-- HOME PAGE -->
+<div class="container" id="homePage">
+  <h1 class="title">Officer Verification System</h1>
+  <button id="goAdmin" class="btn primary">Admin</button>
+  <button id="goUser" class="btn secondary">User</button>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div class="container hidden" id="adminPage">
+  <h2 class="subtitle">Admin Login</h2>
+  <input id="adminUser" class="input" placeholder="Admin Username" />
+  <input id="adminPass" type="password" class="input" placeholder="Admin Password" />
+  <button id="loginAdmin" class="btn primary">Login</button>
+  <button id="backHome1" class="btn back">⬅ Back</button>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="container hidden" id="adminPanel">
+  <h2 class="subtitle">Add / Edit Officer</h2>
+  <input id="officerName" class="input" placeholder="Officer Name" />
+  <input id="officerRank" class="input" placeholder="Rank" />
+  <input id="officerStation" class="input" placeholder="Police Station" />
+  <input id="officerPost" class="input" placeholder="Post" />
+  <input id="officerGrade" class="input" placeholder="Grade" />
+  <input id="officerCode" class="input" placeholder="ID Code" />
+  <label class="dropbox">
+    <p>Drop Image or Click to Upload</p>
+    <input type="file" id="officerImg" accept="image/*">
+  </label>
+  <button id="addOfficer" class="btn primary">Add Officer</button>
+  <button id="goUserPage" class="btn secondary">Go to User Page</button>
+  <button id="backHome2" class="btn back">⬅ Back</button>
+
+  <div class="officer-list" id="officerList"></div>
+</div>
+
+<!-- USER PAGE -->
+<div class="container hidden" id="userPage">
+  <h2 class="subtitle">Verify Officer</h2>
+  <input id="searchCode" class="input" placeholder="Enter ID Code" />
+  <button id="findOfficer" class="btn primary">Find</button>
+  <div id="result" class="result-box"></div>
+  <button id="backHome3" class="btn back">⬅ Back</button>
+</div>
+
+<script>
+// Navigation
+function showPage(id){
+  document.querySelectorAll('.container').forEach(c=>c.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// Buttons
+document.getElementById("goAdmin").onclick = ()=>showPage("adminPage");
+document.getElementById("goUser").onclick = ()=>showPage("userPage");
+document.getElementById("backHome1").onclick = ()=>showPage("homePage");
+document.getElementById("backHome2").onclick = ()=>showPage("homePage");
+document.getElementById("backHome3").onclick = ()=>showPage("homePage");
+document.getElementById("goUserPage").onclick = ()=>showPage("userPage");
+
+// Admin Login
+document.getElementById("loginAdmin").onclick = ()=>{
+  let u=document.getElementById("adminUser").value;
+  let p=document.getElementById("adminPass").value;
+  if(u==="admin" && p==="admin") { showPage("adminPanel"); renderOfficerList(); }
+  else alert("Wrong username or password!");
+};
+
+// Image Upload
+let imageBase64="";
+document.getElementById("officerImg").addEventListener("change", function(){
+  let file=this.files[0];
+  let reader=new FileReader();
+  reader.onload=e=>{ imageBase64=e.target.result; };
+  reader.readAsDataURL(file);
+});
+
+// Add / Update Officer
+let editIndex = null;
+document.getElementById("addOfficer").onclick = ()=>{
+  let officer = {
+    name: document.getElementById("officerName").value,
+    rank: document.getElementById("officerRank").value,
+    unit: document.getElementById("officerStation").value,
+    post: document.getElementById("officerPost").value,
+    grade: document.getElementById("officerGrade").value,
+    idcode: document.getElementById("officerCode").value,
+    image: imageBase64
+  };
+  if(!officer.name || !officer.idcode){ alert("Name and ID required"); return; }
+
+  let data=JSON.parse(localStorage.getItem("officers")||"[]");
+
+  if(editIndex !== null){
+    data[editIndex] = officer; editIndex=null;
+  } else {
+    data.push(officer);
+  }
+  localStorage.setItem("officers", JSON.stringify(data));
+  alert(editIndex===null?"Officer added":"Officer updated");
+  resetForm(); renderOfficerList();
+};
+
+function resetForm(){
+  document.querySelectorAll("#adminPanel input").forEach(i=>i.value="");
+  imageBase64=""; editIndex=null;
+}
+
+// Render Officer List
+function renderOfficerList(){
+  let data=JSON.parse(localStorage.getItem("officers")||"[]");
+  let listDiv=document.getElementById("officerList");
+  listDiv.innerHTML="";
+  data.forEach((officer,i)=>{
+    let div=document.createElement("div");
+    div.className="officer-card";
+    div.innerHTML=`
+      <img src="${officer.image}" />
+      <div class="officer-info">
+        <b>${officer.name}</b><br>
+        ${officer.rank} | ${officer.unit} | ${officer.post} | ${officer.grade}<br>
+        ID: ${officer.idcode}
+      </div>
+      <div class="officer-actions">
+        <button class="btn primary" onclick="editOfficer(${i})">Edit</button>
+        <button class="btn back" onclick="deleteOfficer(${i})">Delete</button>
+      </div>
+    `;
+    listDiv.appendChild(div);
+  });
+}
+
+window.editOfficer = function(i){
+  let data=JSON.parse(localStorage.getItem("officers")||"[]");
+  let o=data[i];
+  document.getElementById("officerName").value=o.name;
+  document.getElementById("officerRank").value=o.rank;
+  document.getElementById("officerStation").value=o.unit;
+  document.getElementById("officerPost").value=o.post;
+  document.getElementById("officerGrade").value=o.grade;
+  document.getElementById("officerCode").value=o.idcode;
+  imageBase64=o.image;
+  editIndex=i;
+};
+
+window.deleteOfficer = function(i){
+  if(!confirm("Are you sure to delete?")) return;
+  let data=JSON.parse(localStorage.getItem("officers")||"[]");
+  data.splice(i,1);
+  localStorage.setItem("officers",JSON.stringify(data));
+  renderOfficerList();
+};
+
+// User Page
+document.getElementById("findOfficer").onclick = ()=>{
+  let code=document.getElementById("searchCode").value;
+  let data=JSON.parse(localStorage.getItem("officers")||"[]");
+  let officer=data.find(o=>o.idcode===code);
+  let r=document.getElementById("result");
+  if(!officer){ r.innerHTML="<p style='color:red'>Officer not found!</p>"; return; }
+  r.innerHTML=`
+    <h3>${officer.name}</h3>
+    <p><b>Rank:</b> ${officer.rank}</p>
+    <p><b>Unit:</b> ${officer.unit}</p>
+    <p><b>Post:</b> ${officer.post}</p>
+    <p><b>Grade:</b> ${officer.grade}</p>
+    <img src="${officer.image}">
+  `;
+};
+</script>
+
+</body>
+</html>
